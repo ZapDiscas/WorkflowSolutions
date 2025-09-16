@@ -1,0 +1,41 @@
+# build-flutter-app.yml
+name: Reusable Flutter Build Solution
+
+on:
+  workflow_call:
+    secrets:
+      KEYSTORE:
+        required: true
+      KEYSTOREPASS:
+        required: true
+      ALIAS:
+        required: true
+    inputs:
+      app-repo:
+        required: true
+        type: string
+      app-repo-ref:
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: Build and Sign App
+    runs-on: self-hosted
+    steps:
+      - name: Execute Build and Sign Action
+        id: build_action
+        uses: ZapDiscas/WorkflowTemplates/flutter-build-sign@main
+        with:
+          app-repo: ${{ inputs.app-repo }}
+          app-repo-ref: ${{ inputs.app-repo-ref }}
+          keystore-base64: ${{ secrets.KEYSTORE }}
+          keystore-password: ${{ secrets.KEYSTOREPASS }}
+          key-alias: ${{ secrets.ALIAS }}
+
+      - name: Upload App Bundle as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-bundle
+          path: ${{ steps.build_action.outputs.aab-path }}
+          retention-days: 1
