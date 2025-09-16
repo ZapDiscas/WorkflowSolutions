@@ -1,0 +1,79 @@
+# reusable-flutter-cicd.yml
+name: Reusable Flutter CI/CD Solution
+
+on:
+  workflow_call:
+    inputs:
+      app-repo:
+        required: true
+        type: string
+      app-repo-ref:
+        required: true
+        type: string
+      app-name:
+        required: true
+        type: string
+    secrets:
+      # Segredos do Environment 'DES'
+      KEYSTORE:
+        required: true
+      KEYSTOREPASS:
+        required: true
+      ALIAS:
+        required: true
+        
+      # Segredos do Environment 'DES_CD'
+      FIREBASE_SERVICE_ACCOUNT:
+        required: true
+      FIREBASE_APP_ID:
+        required: true
+
+jobs:
+  build_app:
+    name: Build and Sign App
+    runs-on: self-hosted # Executa no seu runner
+    outputs:
+      aab-path: ${{ steps.build_action.outputs.aab-path }}
+    steps:
+      - name: Execute Build and Sign Action
+        id: build_action
+        uses: ZapDiscas/WorkflowTemplates/flutter-build-sign@main # Atenção para usar a tag/branch correta
+        with:
+          app-repo: ${{ inputs.app-repo }}
+          app-repo-ref: ${{ inputs.app-repo-ref }}
+          keystore-base64: ${{ secrets.KEYSTORE }}
+          keystore-password: ${{ secrets.KEYSTOREPASS }}
+          key-alias: ${{ secrets.ALIAS }}
+
+      - name: Upload App Bundle as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-bundle
+          path: ${{ steps.build_action.outputs.aab-path }}
+          retention-days: 1
+
+  deploy_app:
+    name: Deploy to Firebase
+    needs: build_app
+    runs-on: self-hosted # Executa no seu runner
+    steps:
+      - name: Download App Bundle Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-bundle
+          
+      - name: Decode Firebase Service Account
+        id: decode_firebase_sa
+        shell: bash
+        run: |
+          FIREBASE_SA_PATH="${{ runner.temp }}/firebase-sa.json"
+          echo "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" | base64 --decode > $FIREBASE_SA_PATH
+          echo "firebase_sa_path=$FIREBASE_SA_PATH" >> $GITHUB_OUTPUT
+
+      - name: Upload to Firebase App Distribution
+        uses: wzieba/firebas-app-distribution-action@v1.7.0
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID }}
+          serviceCredentialsFile: ${{ steps.decode_firebase_sa.outputs.firebase_sa_path }}
+          file: ${{ inputs.app-name }}.aab # O download-artifact extrai o arquivo para o root
+          groups: 'qa-testers'
