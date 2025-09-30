@@ -27,6 +27,7 @@ jobs:
   build:
     name: Build and Sign App
     runs-on: ubuntu-latest
+    environment: DES 
     steps:
       - name: Execute Build and Sign Action
         id: build_action
