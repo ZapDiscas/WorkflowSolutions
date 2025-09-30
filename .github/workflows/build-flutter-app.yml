@@ -1,15 +1,10 @@
-# build-flutter-app.yml
+# .github/workflows/build-flutter-app.yml
+
 name: Reusable Flutter Build Solution
 
 on:
   workflow_call:
-    secrets:
-      KEYSTORE:
-        required: true
-      KEYSTOREPASS:
-        required: true
-      ALIAS:
-        required: true
+    # Declara os 'inputs' que este workflow espera receber
     inputs:
       app-repo:
         required: true
@@ -17,18 +12,31 @@ on:
       app-repo-ref:
         required: true
         type: string
+        
+    # Declara os 'secrets' que este workflow espera receber do chamador
+    # O 'secrets: inherit' no chamador irá preencher estes valores.
+    secrets:
+      KEYSTORE:
+        required: true
+      KEYSTOREPASS:
+        required: true
+      ALIAS:
+        required: true
 
 jobs:
   build:
     name: Build and Sign App
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Execute Build and Sign Action
         id: build_action
         uses: ZapDiscas/WorkflowTemplates/flutter-build-sign@main
         with:
+          # Passa os inputs recebidos para a composite action
           app-repo: ${{ inputs.app-repo }}
           app-repo-ref: ${{ inputs.app-repo-ref }}
+          
+          # Passa os secrets recebidos como inputs para a composite action
           keystore-base64: ${{ secrets.KEYSTORE }}
           keystore-password: ${{ secrets.KEYSTOREPASS }}
           key-alias: ${{ secrets.ALIAS }}
